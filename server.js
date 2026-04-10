@@ -27,7 +27,7 @@ app.get('/api/buk/:endpoint', async (req, res) => {
   try {
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Token token=${BUK_TOKEN}`,
+        'auth_token': BUK_TOKEN,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
