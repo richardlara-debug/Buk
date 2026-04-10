@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Buk — LUM</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f5f7; color: #1a1a2e; min-height: 100vh; }
+
+    header { background: #fff; border-bottom: 1px solid #e8e8e8; padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 100; }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-dot { width: 28px; height: 28px; background: #5b4fcf; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 14px; }
+    .logo-text { font-size: 16px; font-weight: 600; color: #1a1a2e; }
+    .logo-sub { font-size: 12px; color: #888; margin-left: 4px; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .status-pill { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #666; background: #f4f5f7; padding: 6px 12px; border-radius: 20px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+    .status-dot.green { background: #22c55e; }
+    .status-dot.red { background: #ef4444; }
+    .btn-refresh { background: #5b4fcf; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .btn-refresh:hover { background: #4a3fb5; }
+    .btn-refresh:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+    .error-banner { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; color: #dc2626; font-size: 14px; display: none; }
+
+    .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 1.5rem; }
+    .metric-card { background: #fff; border-radius: 12px; padding: 1.25rem; border: 1px solid #e8e8e8; }
+    .metric-label { font-size: 12px; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .metric-value { font-size: 26px; font-weight: 700; color: #1a1a2e; }
+    .metric-sub { font-size: 12px; color: #aaa; margin-top: 4px; }
+    .metric-icon { font-size: 20px; float: right; margin-top: -4px; }
+
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 1.5rem; }
+    .chart-card { background: #fff; border-radius: 12px; padding: 1.25rem; border: 1px solid #e8e8e8; }
+    .chart-title { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 1rem; }
+    .chart-wrap { position: relative; height: 220px; }
+
+    .table-card { background: #fff; border-radius: 12px; padding: 1.25rem; border: 1px solid #e8e8e8; }
+    .table-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .table-title { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+    .search-box { border: 1px solid #e8e8e8; border-radius: 8px; padding: 7px 12px; font-size: 13px; width: 200px; outline: none; }
+    .search-box:focus { border-color: #5b4fcf; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 12px; border-bottom: 1px solid #f0f0f0; }
+    td { padding: 12px; border-bottom: 1px solid #f8f8f8; font-size: 14px; color: #333; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    .avatar { width: 34px; height: 34px; border-radius: 50%; background: #ede9fe; color: #5b4fcf; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 8px; vertical-align: middle; }
+    .emp-name { font-weight: 500; color: #1a1a2e; }
+    .emp-role { font-size: 12px; color: #888; }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-green { background: #dcfce7; color: #16a34a; }
+    .badge-gray { background: #f1f5f9; color: #64748b; }
+    .badge-blue { background: #eff6ff; color: #2563eb; }
+
+    .pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f0f0f0; }
+    .page-info { font-size: 13px; color: #888; }
+    .page-btns { display: flex; gap: 8px; }
+    .page-btn { border: 1px solid #e8e8e8; background: #fff; border-radius: 6px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: #333; }
+    .page-btn:hover { background: #f4f5f7; }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .loading-row td { text-align: center; color: #aaa; padding: 2rem; }
+
+    .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .bar-label { font-size: 12px; color: #666; width: 100px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { flex: 1; height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+    .bar-count { font-size: 12px; color: #888; width: 30px; text-align: right; }
+
+    footer { text-align: center; padding: 2rem; font-size: 12px; color: #bbb; }
+
+    @media (max-width: 768px) {
+      .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid { grid-template-columns: 1fr; }
+      main { padding: 1rem; }
+      header { padding: 0 1rem; }
+      .logo-sub { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot">B</div>
+    <span class="logo-text">Dashboard Buk</span>
+    <span class="logo-sub">— LUM</span>
+  </div>
+  <div class="header-right">
+    <div class="status-pill">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Cargando...</span>
+    </div>
+    <button class="btn-refresh" onclick="loadAll()" id="btn-refresh">
+      ↻ Actualizar
+    </button>
+  </div>
+</header>
+
+<main>
+  <div class="error-banner" id="error-banner"></div>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">Colaboradores <span class="metric-icon">👥</span></div>
+      <div class="metric-value" id="m-total">—</div>
+      <div class="metric-sub">activos en nómina</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Total nómina <span class="metric-icon">💰</span></div>
+      <div class="metric-value" id="m-nomina">—</div>
+      <div class="metric-sub">período actual</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Promedio salarial <span class="metric-icon">📊</span></div>
+      <div class="metric-value" id="m-prom">—</div>
+      <div class="metric-sub">por empleado</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Tipos contrato <span class="metric-icon">📋</span></div>
+      <div class="metric-value" id="m-contratos">—</div>
+      <div class="metric-sub">categorías</div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Distribución por área</div>
+      <div id="areas-bars"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Tipos de contrato</div>
+      <div class="chart-wrap"><canvas id="contrato-chart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">Colaboradores</div>
+      <input class="search-box" type="text" placeholder="Buscar nombre o cargo..." oninput="buscar(this.value)" id="search-input">
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Cargo</th>
+          <th>Área</th>
+          <th>Contrato</th>
+          <th>Salario</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody id="emp-tbody">
+        <tr class="loading-row"><td colspan="6">Cargando colaboradores...</td></tr>
+      </tbody>
+    </table>
+    <div class="pagination">
+      <div class="page-info" id="page-info">—</div>
+      <div class="page-btns">
+        <button class="page-btn" onclick="changePage(-1)" id="btn-prev">← Anterior</button>
+        <button class="page-btn" onclick="changePage(1)" id="btn-next">Siguiente →</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>Dashboard Buk LUM · Datos en tiempo real vía API · <span id="last-update">—</span></footer>
+
+<script>
+const PROXY = 'https://buk-50bt.onrender.com';
+let allEmp = [];
+let filtered = [];
+let currentPage = 1;
+const perPage = 15;
+let contratoChart = null;
+
+async function loadAll() {
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true;
+  btn.textContent = '↻ Cargando...';
+  setStatus('gray', 'Conectando...');
+  showError('');
+
+  try {
+    let page = 1;
+    let todos = [];
+    let hasMore = true;
+
+    while (hasMore) {
+      const res = await fetch(`${PROXY}/api/buk/employees?per_page=100&page=${page}`);
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data = await res.json();
+      const emp = data.employees || data.data || (Array.isArray(data) ? data : []);
+      todos = todos.concat(emp);
+      const pagination = data.pagination || {};
+      hasMore = pagination.next && emp.length === 100;
+      page++;
+      if (page > 20) break;
+    }
+
+    allEmp = todos;
+    filtered = todos;
+    currentPage = 1;
+
+    renderMetrics(todos);
+    renderAreas(todos);
+    renderContratos(todos);
+    renderTabla();
+    setStatus('green', 'Conectado · ' + new Date().toLocaleTimeString('es-CO'));
+    document.getElementById('last-update').textContent = 'Actualizado: ' + new Date().toLocaleString('es-CO');
+  } catch(e) {
+    setStatus('red', 'Error de conexión');
+    showError('No se pudo conectar: ' + e.message + '. El proxy puede estar iniciando — espera 30s y actualiza.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Actualizar';
+  }
+}
+
+function setStatus(color, text) {
+  document.getElementById('status-dot').className = 'status-dot ' + (color === 'green' ? 'green' : color === 'red' ? 'red' : '');
+  document.getElementById('status-text').textContent = text;
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-banner');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+function renderMetrics(emp) {
+  const salarios = emp.map(e => parseFloat(e.wage || e.salary || e.base_salary || 0)).filter(s => s > 0);
+  const totalNomina = salarios.reduce((a,b) => a+b, 0);
+  const prom = salarios.length ? Math.round(totalNomina / salarios.length) : 0;
+  const contratos = new Set(emp.map(e => e.type_of_contract || e.contract_type).filter(Boolean)).size;
+
+  document.getElementById('m-total').textContent = emp.length.toLocaleString('es-CO');
+  document.getElementById('m-nomina').textContent = totalNomina > 0 ? '$' + Math.round(totalNomina).toLocaleString('es-CO') : 'N/D';
+  document.getElementById('m-prom').textContent = prom > 0 ? '$' + prom.toLocaleString('es-CO') : 'N/D';
+  document.getElementById('m-contratos').textContent = contratos || '—';
+}
+
+function renderAreas(emp) {
+  const map = {};
+  emp.forEach(e => {
+    const jobs = e.jobs || [];
+    const area = jobs[0]?.area_id ? ('Área ' + jobs[0].area_id) : (e.area || e.department || 'Sin área');
+    map[area] = (map[area] || 0) + 1;
+  });
+  const sorted = Object.entries(map).sort((a,b) => b[1]-a[1]).slice(0, 8);
+  const max = sorted[0]?.[1] || 1;
+  const colors = ['#5b4fcf','#22c55e','#f59e0b','#ef4444','#3b82f6','#ec4899','#14b8a6','#8b5cf6'];
+  document.getElementById('areas-bars').innerHTML = sorted.map(([name, count], i) =>
+    `<div class="bar-row">
+      <div class="bar-label" title="${name}">${name.length > 14 ? name.slice(0,13)+'…' : name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(count/max*100)}%;background:${colors[i]};"></div></div>
+      <div class="bar-count">${count}</div>
+    </div>`
+  ).join('');
+}
+
+function renderContratos(emp) {
+  const map = {};
+  emp.forEach(e => {
+    const jobs = e.jobs || [];
+    const c = jobs[0]?.type_of_contract || e.type_of_contract || e.contract_type || 'N/D';
+    map[c] = (map[c] || 0) + 1;
+  });
+  const labels = Object.keys(map);
+  const values = Object.values(map);
+  const colors = ['#5b4fcf','#22c55e','#f59e0b','#ef4444','#3b82f6'];
+
+  if (contratoChart) contratoChart.destroy();
+  const ctx = document.getElementById('contrato-chart').getContext('2d');
+  contratoChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } }
+      }
+    }
+  });
+}
+
+function renderTabla() {
+  const start = (currentPage - 1) * perPage;
+  const slice = filtered.slice(start, start + perPage);
+  const totalPages = Math.ceil(filtered.length / perPage);
+
+  document.getElementById('page-info').textContent =
+    `Mostrando ${start + 1}–${Math.min(start + perPage, filtered.length)} de ${filtered.length}`;
+  document.getElementById('btn-prev').disabled = currentPage === 1;
+  document.getElementById('btn-next').disabled = currentPage >= totalPages;
+
+  if (!slice.length) {
+    document.getElementById('emp-tbody').innerHTML = '<tr class="loading-row"><td colspan="6">Sin resultados</td></tr>';
+    return;
+  }
+
+  document.getElementById('emp-tbody').innerHTML = slice.map(e => {
+    const nombre = (e.full_name || e.name || ((e.first_name||'') + ' ' + (e.last_name||'')).trim()) || 'Sin nombre';
+    const initials = nombre.split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
+    const jobs = e.jobs || [];
+    const job = jobs[0] || {};
+    const cargo = job.role?.name || e.job_title || e.position || '—';
+    const area = job.area_id ? ('Área ' + job.area_id) : (e.area || '—');
+    const contrato = job.type_of_contract || e.type_of_contract || '—';
+    const salario = parseFloat(job.wage || e.wage || e.salary || 0);
+    const salStr = salario > 0 ? '$' + Math.round(salario).toLocaleString('es-CO') : '—';
+    const activo = e.active !== false && e.status !== 'inactivo';
+    const estadoBadge = activo
+      ? '<span class="badge badge-green">Activo</span>'
+      : '<span class="badge badge-gray">Inactivo</span>';
+
+    return `<tr>
+      <td><span class="avatar">${initials}</span><span class="emp-name">${nombre}</span></td>
+      <td><span class="emp-role">${cargo}</span></td>
+      <td>${area}</td>
+      <td><span class="badge badge-blue">${contrato}</span></td>
+      <td>${salStr}</td>
+      <td>${estadoBadge}</td>
+    </tr>`;
+  }).join('');
+}
+
+function buscar(q) {
+  const term = q.toLowerCase();
+  filtered = allEmp.filter(e => {
+    const nombre = (e.full_name || e.name || ((e.first_name||'') + ' ' + (e.last_name||''))).toLowerCase();
+    const cargo = (e.jobs?.[0]?.role?.name || e.job_title || '').toLowerCase();
+    return nombre.includes(term) || cargo.includes(term);
+  });
+  currentPage = 1;
+  renderTabla();
+}
+
+function changePage(dir) {
+  currentPage += dir;
+  renderTabla();
+  window.scrollTo({ top: document.querySelector('.table-card').offsetTop - 80, behavior: 'smooth' });
+}
+
+loadAll();
+</script>
+</body>
+</html>
