@@ -350,7 +350,48 @@ function changePage(dir) {
   window.scrollTo({ top: document.querySelector('.table-card').offsetTop - 80, behavior: 'smooth' });
 }
 
-loadAll();
+async function loadAll() {
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true;
+  btn.textContent = '↻ Cargando...';
+  setStatus('gray', 'Conectando...');
+  showError('');
+
+  try {
+    let page = 1;
+    let todos = [];
+    let totalPages = 1;
+
+    do {
+      const res = await fetch(`${PROXY}/api/buk/employees?per_page=25&page=${page}`);
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data = await res.json();
+      const emp = data.data || data.employees || (Array.isArray(data) ? data : []);
+      todos = todos.concat(emp);
+      totalPages = data.pagination?.total_pages || 1;
+      btn.textContent = `↻ Cargando... ${todos.length} empleados`;
+      page++;
+    } while (page <= totalPages);
+
+    allEmp = todos;
+    filtered = todos;
+    currentPage = 1;
+
+    renderMetrics(todos);
+    renderAreas(todos);
+    renderContratos(todos);
+    renderTabla();
+    setStatus('green', `Conectado · ${todos.length} colaboradores · ` + new Date().toLocaleTimeString('es-CO'));
+    document.getElementById('last-update').textContent = 'Actualizado: ' + new Date().toLocaleString('es-CO');
+  } catch(e) {
+    setStatus('red', 'Error de conexión');
+    showError('No se pudo conectar: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Actualizar';
+  }
+}
+
 </script>
 </body>
 </html>
