@@ -295,7 +295,7 @@ function renderContratos(emp) {
 function renderTabla() {
   const start = (currentPage - 1) * perPage;
   const slice = filtered.slice(start, start + perPage);
-  const totalPages = Math.ceil(filtered.length / perPage);
+  const totalPages = data.pagination?.total_pages || Math.ceil((data.pagination?.count || 0) / 100) || 1;
 
   document.getElementById('page-info').textContent =
     `Mostrando ${start + 1}–${Math.min(start + perPage, filtered.length)} de ${filtered.length}`;
@@ -363,7 +363,7 @@ async function loadAll() {
     let totalPages = 1;
 
     do {
-      const res = await fetch(`${PROXY}/api/buk/employees?per_page=25&page=${page}`);
+      const res = await fetch(`${PROXY}/api/buk/employees?per_page=100&page=${page}&active=true`);
       if (!res.ok) throw new Error(`Error ${res.status}`);
       const data = await res.json();
       const emp = data.data || data.employees || (Array.isArray(data) ? data : []);
